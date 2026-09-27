@@ -356,7 +356,7 @@ class _TimerScreenState extends State<TimerScreen> {
     if (bytes == null) return;
     try {
       await _beepPlayer.stop();
-      await _beepPlayer.play(BytesSource(bytes));
+      await _beepPlayer.play(BytesSource(bytes, mimeType: 'audio/wav'));
     } catch (_) {
       // Best-effort — haptic feedback still gives the user a cue if this fails.
     }
@@ -1231,8 +1231,17 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
     }
   }
 
-  void _shareFile(String path) {
-    Share.shareXFiles([XFile(path)], text: 'My MUET Speaking Practice Recording');
+  void _shareFile(String path, BuildContext context) {
+    // iPad requires an anchor point for the share sheet (it's a popover
+    // there, not a full-screen modal like on iPhone/Android) — without
+    // this, sharing silently fails on iPad specifically.
+    final box = context.findRenderObject() as RenderBox?;
+    Share.shareXFiles(
+      [XFile(path)],
+      text: 'My MUET Speaking Practice Recording',
+      sharePositionOrigin:
+          box != null ? box.localToGlobal(Offset.zero) & box.size : null,
+    );
   }
 
   Future<void> _confirmDelete(File file, String displayName) async {
@@ -1375,8 +1384,7 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
                                     icon: Icons.share,
                                     color: Theme.of(context).colorScheme.primary,
                                     tooltip: 'Share',
-                                    onPressed: () => _shareFile(file.path),
-                                  ),
+                                    onPressed: () => _shareFile(file.path, context),                                  ),
                                   _compactIconButton(
                                     icon: Icons.delete_outline,
                                     color: Colors.redAccent,
