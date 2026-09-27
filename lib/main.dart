@@ -1231,17 +1231,35 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
     }
   }
 
-  void _shareFile(String path, BuildContext context) {
-    // iPad requires an anchor point for the share sheet (it's a popover
-    // there, not a full-screen modal like on iPhone/Android) — without
-    // this, sharing silently fails on iPad specifically.
+  Future<void> _shareFile(String path, BuildContext context) async {
+    if (!await File(path).exists()) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Recording file not found — cannot share.')),
+        );
+      }
+      return;
+    }
+
     final box = context.findRenderObject() as RenderBox?;
-    Share.shareXFiles(
-      [XFile(path)],
-      text: 'My MUET Speaking Practice Recording',
-      sharePositionOrigin:
-          box != null ? box.localToGlobal(Offset.zero) & box.size : null,
-    );
+    try {
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(path)],
+          text: 'My MUET Speaking Practice Recording',
+          sharePositionOrigin:
+              box != null ? box.localToGlobal(Offset.zero) & box.size : null,
+        ),
+      );
+      debugPrint('Share result: ${result.status}');
+    } catch (e, st) {
+      debugPrint('Share failed: $e\n$st');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sharing failed: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _confirmDelete(File file, String displayName) async {
