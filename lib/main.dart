@@ -1241,17 +1241,34 @@ class _RecordingsListScreenState extends State<RecordingsListScreen> {
       return;
     }
 
-    final box = context.findRenderObject() as RenderBox?;
+    // Bug fix: on iPad, sharePositionOrigin needs a reliably non-zero,
+    // valid anchor rect for the popover — deriving it from this specific
+    // button's RenderBox can occasionally be zero-size or stale (e.g. if
+    // the list row was mid-rebuild), which makes iOS silently skip
+    // showing the share sheet at all, with no error reported back to
+    // Flutter. Anchoring to a fixed safe region of the screen instead
+    // avoids that entirely.
+    final screenSize = MediaQuery.of(context).size;
+    final safeOrigin = Rect.fromLTWH(
+      0,
+      0,
+      screenSize.width,
+      screenSize.height / 2,
+    );
+
     try {
       final result = await SharePlus.instance.share(
         ShareParams(
           files: [XFile(path)],
           text: 'My MUET Speaking Practice Recording',
-          sharePositionOrigin:
-              box != null ? box.localToGlobal(Offset.zero) & box.size : null,
+          sharePositionOrigin: safeOrigin,
         ),
       );
-      debugPrint('Share result: ${result.status}');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Share sheet result: ${result.status}')),
+        );
+      }
     } catch (e, st) {
       debugPrint('Share failed: $e\n$st');
       if (context.mounted) {
